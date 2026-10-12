@@ -61,13 +61,15 @@ On first run, the app will:
 
 ### Limit the UI to a room
 
-Pass a Hue API v1 numeric group ID (such as `3`) to show only that room, its lights and its scenes:
+Use a Hue API v1 group ID or a comma-separated list of room/zone IDs:
 
 ```bash
-hue --group 3
+hue --group 3      # Arbeitszimmer (room)
+hue --group 81     # Play Bars (zone)
+hue --group 3,81   # Show both
 ```
 
-A v2 room UUID also works: `hue --group <room-uuid>`. Without `--group`, all rooms are shown. An unknown ID displays an error instead of falling back to all rooms. This scopes the UI, not the API key's permissions.
+Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (original behavior). An unknown ID, even in a list, causes an error rather than exposing unrelated rooms. This scopes the UI, not the API key's permissions.
 
 ## Keybindings
 
