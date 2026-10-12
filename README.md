@@ -18,6 +18,7 @@ A terminal-based Philips Hue control application written in Go.
 - **Real-time Updates**: Server-sent events for live state updates
 - **Search**: Filter lights by name
 - **Keyboard-driven**: Full vim-style navigation
+- **Mouse input**: Click to select, click a light status dot to toggle, scroll with the wheel, click/drag brightness bars (including the details panel); drag requests are throttled
 
 ## Installation
 
@@ -81,7 +82,14 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `k` / `↑` | Move up             |
 | `h` / `←` | Decrease brightness |
 | `l` / `→` | Increase brightness |
-| `H` / `L` | Fine-adjust brightness; `Alt+←/→` and `Alt+h/l` also work when supported |
+| `H` / `L` | Fine-adjust brightness; `Shift/Ctrl/Alt+←/→` when sent by the terminal |
+
+### Mouse control
+
+- Click a room, zone or light to select it.
+- Click a light's status dot to toggle it.
+- Click or drag a brightness bar in the list or right-hand details panel to set the brightness (1–100%). Dragging a room/zone slider adjusts all its lights.
+- Scroll with the mouse wheel. Requests during dragging are rate-limited; the final value is sent on release.
 
 ### Light Control
 
