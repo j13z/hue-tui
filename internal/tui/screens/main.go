@@ -1443,7 +1443,8 @@ func (m MainModel) renderHelp() string {
 	keys := []string{
 		styleHelpKey.Render("↑↓") + " nav",
 		styleHelpKey.Render("pgup/dn") + " scroll",
-		styleHelpKey.Render("←→") + " dim",		styleHelpKey.Render("alt+←→") + " fine",
+		styleHelpKey.Render("←→") + " dim",
+		styleHelpKey.Render("alt+←→") + " fine",
 		styleHelpKey.Render("space") + " toggle",
 		styleHelpKey.Render("w/c") + " temp",
 		styleHelpKey.Render("[]") + " hue",
@@ -1463,7 +1464,8 @@ func (m MainModel) renderHelp() string {
 	} else if m.width < 90 {
 		keys = []string{
 			styleHelpKey.Render("↑↓") + " nav",
-			styleHelpKey.Render("←→") + " dim",			styleHelpKey.Render("alt+←→") + " fine",
+			styleHelpKey.Render("←→") + " dim",
+			styleHelpKey.Render("alt+←→") + " fine",
 			styleHelpKey.Render("space") + " toggle",
 			styleHelpKey.Render("s") + " scenes",
 			styleHelpKey.Render("q") + " quit",
