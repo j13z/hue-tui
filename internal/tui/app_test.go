@@ -79,3 +79,34 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+func TestFetchDataCmdGroupScope(t *testing.T) {
+	model := NewModel(&config.Config{}, true)
+	unfiltered := model.fetchDataCmd()()
+	data, ok := unfiltered.(messages.DataFetchedMsg)
+	if !ok || len(data.Rooms) == 0 {
+		t.Fatalf("expected demo rooms, got %T", unfiltered)
+	}
+
+	want := data.Rooms[0].ID
+	model.SetGroupScope(want)
+	filtered := model.fetchDataCmd()()
+	scoped, ok := filtered.(messages.DataFetchedMsg)
+	if !ok {
+		t.Fatalf("expected scoped DataFetchedMsg, got %T", filtered)
+	}
+	if len(scoped.Rooms) != 1 || scoped.Rooms[0].ID != want {
+		t.Fatalf("wrong scoped rooms: %+v", scoped.Rooms)
+	}
+	for _, scene := range scoped.Scenes {
+		if scene.RoomID != want {
+			t.Fatalf("out-of-scope scene: %+v", scene)
+		}
+	}
+
+	model.SetGroupScope("unknown-group")
+	unknown := model.fetchDataCmd()()
+	if _, ok := unknown.(messages.ErrorMsg); !ok {
+		t.Fatalf("unknown group must fail closed, got %T", unknown)
+	}
+}
