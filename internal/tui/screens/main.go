@@ -95,6 +95,7 @@ type listItem struct {
 // MainModel is the main dashboard screen model
 type MainModel struct {
 	rooms         []*models.Room
+	steps         StepConfig
 	scenes        []*models.Scene
 	selectedIndex int
 	scrollOffset  int        // Vertical scroll offset
@@ -126,6 +127,7 @@ func NewMainModel(keys interface{}) MainModel {
 
 	return MainModel{
 		searchInput: ti,
+		steps:       loadStepConfig(),
 		lightToRoom: make(map[string]*models.Room),
 		showPanel:   true, // Side panel on by default
 		loading:     true, // Start in loading state
@@ -303,7 +305,10 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			}
 		}
 
-		switch msg.String() {
+		key := msg.String()
+		fine := strings.HasPrefix(key, "alt+")
+
+		switch key {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 
@@ -347,13 +352,14 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			}
 			m.ensureVisible()
 
-		case "left", "h":
+		case "left", "h", "alt+left", "alt+h":
+			step := pickStep(m.steps.Brightness, m.steps.FineBrightness, fine)
 			if m.IsRoomSelected() {
 				// Dim all lights in room
 				if room := m.SelectedRoom(); room != nil {
 					for _, light := range room.Lights {
 						if light.On {
-							newBrightness := max(10, light.BrightnessPct()-10)
+							newBrightness := max(1, light.BrightnessPct()-step)
 							light.SetBrightnessPct(newBrightness)
 							if addPending != nil {
 								addPending(light.ID, "brightness", newBrightness, DirDown)
@@ -363,7 +369,11 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 					}
 				}
 			} else if light := m.SelectedLight(); light != nil && light.On {
-				newBrightness := max(0, light.BrightnessPct()-10)
+				newBrightness := max(0, light.BrightnessPct()-step)
+				// Fine-adjust does not accidentally turn the light off.
+				if fine && newBrightness == 0 {
+					newBrightness = 1
+				}
 				if newBrightness == 0 {
 					light.On = false
 					if addPending != nil {
@@ -379,13 +389,14 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				}
 			}
 
-		case "right", "l":
+		case "right", "l", "alt+right", "alt+l":
+			step := pickStep(m.steps.Brightness, m.steps.FineBrightness, fine)
 			if m.IsRoomSelected() {
 				// Brighten all lights in room
 				if room := m.SelectedRoom(); room != nil {
 					for _, light := range room.Lights {
 						if light.On {
-							newBrightness := min(100, light.BrightnessPct()+10)
+							newBrightness := min(100, light.BrightnessPct()+step)
 							light.SetBrightnessPct(newBrightness)
 							if addPending != nil {
 								addPending(light.ID, "brightness", newBrightness, DirUp)
@@ -397,15 +408,15 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			} else if light := m.SelectedLight(); light != nil {
 				if !light.On {
 					light.On = true
-					light.SetBrightnessPct(10)
+					light.SetBrightnessPct(step)
 					if addPending != nil {
 						addPending(light.ID, "on", true, DirExact)
-						addPending(light.ID, "brightness", 10, DirUp)
+						addPending(light.ID, "brightness", step, DirUp)
 					}
 					cmds = append(cmds, m.toggleLightCmd(bridge, light.ID, true))
-					cmds = append(cmds, m.setBrightnessCmd(bridge, light.ID, 10))
+					cmds = append(cmds, m.setBrightnessCmd(bridge, light.ID, step))
 				} else {
-					newBrightness := min(100, light.BrightnessPct()+10)
+					newBrightness := min(100, light.BrightnessPct()+step)
 					light.SetBrightnessPct(newBrightness)
 					if addPending != nil {
 						addPending(light.ID, "brightness", newBrightness, DirUp)
@@ -462,13 +473,14 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				}
 			}
 
-		case "w":
+		case "w", "alt+w":
+			step := pickStep(m.steps.Temperature, m.steps.FineTemperature, fine)
 			if light := m.SelectedLight(); light != nil && light.SupportsColorTemp && light.Color != nil {
 				// Switch to temperature mode and make warmer (higher mirek = warmer)
 				if light.Color.Mirek == 0 {
 					light.Color.Mirek = 326 // Default to middle (3000K)
 				}
-				newMirek := min(500, int(light.Color.Mirek)+25)
+				newMirek := min(500, int(light.Color.Mirek)+step)
 				light.Color.Mirek = uint16(newMirek)
 				light.Color.Mode = models.ColorModeColorTemp
 				light.Color.InvalidateCache()
@@ -478,13 +490,14 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorTempCmd(bridge, light.ID, newMirek))
 			}
 
-		case "c":
+		case "c", "alt+c":
+			step := pickStep(m.steps.Temperature, m.steps.FineTemperature, fine)
 			if light := m.SelectedLight(); light != nil && light.SupportsColorTemp && light.Color != nil {
 				// Switch to temperature mode and make cooler (lower mirek = cooler)
 				if light.Color.Mirek == 0 {
 					light.Color.Mirek = 326 // Default to middle (3000K)
 				}
-				newMirek := max(153, int(light.Color.Mirek)-25)
+				newMirek := max(153, int(light.Color.Mirek)-step)
 				light.Color.Mirek = uint16(newMirek)
 				light.Color.Mode = models.ColorModeColorTemp
 				light.Color.InvalidateCache()
@@ -494,7 +507,8 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorTempCmd(bridge, light.ID, newMirek))
 			}
 
-		case "[":
+		case "[", "alt+[":
+			step := hueUnits(pickStep(m.steps.Hue, m.steps.FineHue, fine))
 			// Decrease hue (rotate color wheel left)
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
 				// Initialize HS from current color if switching from other mode
@@ -505,7 +519,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 					light.Color.Saturation = uint8(float64(s) / 100.0 * 254.0)
 					light.Color.Brightness = light.Brightness // Preserve brightness
 				}
-				newHue := (int(light.Color.Hue) - 3640 + 65536) % 65536 // -20° in hue units
+				newHue := (int(light.Color.Hue) - step + 65536) % 65536
 				light.Color.Hue = uint16(newHue)
 				light.Color.Mode = models.ColorModeHS
 				light.Color.InvalidateCache()
@@ -516,7 +530,8 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorHSCmd(bridge, light.ID, light.Color.Hue, light.Color.Saturation))
 			}
 
-		case "]":
+		case "]", "alt+]":
+			step := hueUnits(pickStep(m.steps.Hue, m.steps.FineHue, fine))
 			// Increase hue (rotate color wheel right)
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
 				// Initialize HS from current color if switching from other mode
@@ -527,7 +542,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 					light.Color.Saturation = uint8(float64(s) / 100.0 * 254.0)
 					light.Color.Brightness = light.Brightness // Preserve brightness
 				}
-				newHue := (int(light.Color.Hue) + 3640) % 65536 // +20° in hue units
+				newHue := (int(light.Color.Hue) + step) % 65536
 				light.Color.Hue = uint16(newHue)
 				light.Color.Mode = models.ColorModeHS
 				light.Color.InvalidateCache()
@@ -538,7 +553,8 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorHSCmd(bridge, light.ID, light.Color.Hue, light.Color.Saturation))
 			}
 
-		case "-":
+		case "-", "alt+-":
+			step := satUnits(pickStep(m.steps.Saturation, m.steps.FineSaturation, fine))
 			// Decrease saturation
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
 				// Initialize HS from current color if switching from other mode
@@ -549,7 +565,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 					light.Color.Saturation = uint8(float64(s) / 100.0 * 254.0)
 					light.Color.Brightness = light.Brightness // Preserve brightness
 				}
-				newSat := max(0, int(light.Color.Saturation)-25)
+				newSat := max(0, int(light.Color.Saturation)-step)
 				light.Color.Saturation = uint8(newSat)
 				light.Color.Mode = models.ColorModeHS
 				light.Color.InvalidateCache()
@@ -560,7 +576,8 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorHSCmd(bridge, light.ID, light.Color.Hue, light.Color.Saturation))
 			}
 
-		case "=", "+":
+		case "=", "+", "alt+=", "alt++":
+			step := satUnits(pickStep(m.steps.Saturation, m.steps.FineSaturation, fine))
 			// Increase saturation
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
 				// Initialize HS from current color if switching from other mode
@@ -571,7 +588,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 					light.Color.Saturation = uint8(float64(s) / 100.0 * 254.0)
 					light.Color.Brightness = light.Brightness // Preserve brightness
 				}
-				newSat := min(254, int(light.Color.Saturation)+25)
+				newSat := min(254, int(light.Color.Saturation)+step)
 				light.Color.Saturation = uint8(newSat)
 				light.Color.Mode = models.ColorModeHS
 				light.Color.InvalidateCache()
@@ -1426,7 +1443,7 @@ func (m MainModel) renderHelp() string {
 	keys := []string{
 		styleHelpKey.Render("↑↓") + " nav",
 		styleHelpKey.Render("pgup/dn") + " scroll",
-		styleHelpKey.Render("←→") + " dim",
+		styleHelpKey.Render("←→") + " dim",		styleHelpKey.Render("alt+←→") + " fine",
 		styleHelpKey.Render("space") + " toggle",
 		styleHelpKey.Render("w/c") + " temp",
 		styleHelpKey.Render("[]") + " hue",
@@ -1446,7 +1463,7 @@ func (m MainModel) renderHelp() string {
 	} else if m.width < 90 {
 		keys = []string{
 			styleHelpKey.Render("↑↓") + " nav",
-			styleHelpKey.Render("←→") + " dim",
+			styleHelpKey.Render("←→") + " dim",			styleHelpKey.Render("alt+←→") + " fine",
 			styleHelpKey.Render("space") + " toggle",
 			styleHelpKey.Render("s") + " scenes",
 			styleHelpKey.Render("q") + " quit",
