@@ -655,7 +655,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 		case "m":
 			// Switch the details panel between ambiance and color controls.
 			// This changes only the UI; actual light mode changes on adjustment.
-			if light := m.SelectedLight(); light != nil && light.SupportsColor {
+			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.SupportsColorTemp {
 				m.showColorControls = !m.showColorControls
 			}
 
@@ -952,7 +952,7 @@ func (m MainModel) renderPanel(panelWidth int) string {
 			mirek = int(light.Color.Mirek)
 		}
 		content.WriteString(styleMuted.Render("Mode: "))
-		content.WriteString("Temperature  (m: color)\n\n")
+		content.WriteString("Temperature  (click/m: color)\n\n")
 		content.WriteString(styleMuted.Render("Temp: "))
 		if active {
 			content.WriteString(fmt.Sprintf("%dK\n", 1000000/mirek))
@@ -993,7 +993,7 @@ func (m MainModel) renderPanel(panelWidth int) string {
 		case models.ColorModeHS:
 			// HS Color mode
 			content.WriteString(styleMuted.Render("Mode: "))
-			content.WriteString("Color (HS)\n\n")
+			content.WriteString("Color (HS)  (click/m: temp)\n\n")
 
 			// Hue (convert from 0-65535 to 0-360°)
 			hueDeg := int(float64(light.Color.Hue) / 65535.0 * 360.0)
@@ -1015,7 +1015,7 @@ func (m MainModel) renderPanel(panelWidth int) string {
 		case models.ColorModeXY:
 			// XY Color mode - convert to HS for display
 			content.WriteString(styleMuted.Render("Mode: "))
-			content.WriteString("Color (XY)\n\n")
+			content.WriteString("Color (XY)  (click/m: temp)\n\n")
 
 			// Convert RGB to HSV for display
 			hueDeg, satPct := rgbToHueSat(r, g, bl)
