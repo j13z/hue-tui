@@ -51,7 +51,7 @@ func TestJSONTuningAndEnvironmentPriority(t *testing.T) {
 }
 
 func TestFineAdjustmentKeys(t *testing.T) {
-	for _, key := range []string{"alt+left", "alt+right", "H", "L", "W", "C", "{", "}", "_", "+"} {
+	for _, key := range []string{"alt+left", "alt+right", "shift+left", "shift+right", "ctrl+left", "ctrl+right", "H", "L", "W", "C", "{", "}", "_", "+"} {
 		if !fineAdjustmentKey(key) {
 			t.Errorf("key %q should be fine adjust", key)
 		}
