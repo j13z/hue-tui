@@ -111,6 +111,7 @@ type MainModel struct {
 	mouseDragValue, mouseDragSent int
 	mouseDragWasOff map[string]bool
 	mouseDragSentAt time.Time
+	mouseWrites *mouseWriteCoordinator
 
 	showPanel   bool
 	showColorControls bool // Temperature is the preferred default for capable lights.
@@ -139,6 +140,7 @@ func NewMainModel(keys interface{}) MainModel {
 	return MainModel{
 		searchInput: ti,
 		steps:       loadStepConfig(),
+		mouseWrites: newMouseWriteCoordinator(),
 		lightToRoom: make(map[string]*models.Room),
 		showPanel:   true, // Side panel on by default
 		loading:     true, // Start in loading state
