@@ -366,7 +366,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			}
 			m.ensureVisible()
 
-		case "left", "h", "H", "alt+left", "alt+h":
+		case "left", "h", "H", "alt+left", "alt+h", "shift+left", "ctrl+left":
 			step := pickStep(m.steps.Brightness, m.steps.FineBrightness, fine)
 			if m.IsRoomSelected() {
 				// Dim all lights in room
@@ -403,7 +403,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				}
 			}
 
-		case "right", "l", "L", "alt+right", "alt+l":
+		case "right", "l", "L", "alt+right", "alt+l", "shift+right", "ctrl+right":
 			step := pickStep(m.steps.Brightness, m.steps.FineBrightness, fine)
 			if m.IsRoomSelected() {
 				// Brighten all lights in room
