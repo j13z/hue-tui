@@ -47,6 +47,8 @@ const (
 type Model struct {
 	// Configuration
 	config *config.Config
+	// Optional Hue v1 group ID or v2 room UUID to display
+	groupScope string
 
 	// Bridge connection
 	bridge   api.BridgeClient
@@ -115,6 +117,11 @@ func NewModel(cfg *config.Config, demoMode bool) Model {
 	m.scenesScreen = screens.NewScenesModel()
 
 	return m
+}
+
+// SetGroupScope limits the visible rooms, lights and scenes to one Hue room.
+func (m *Model) SetGroupScope(group string) {
+	m.groupScope = group
 }
 
 // Init initializes the application
@@ -417,6 +424,7 @@ func (m Model) fetchDataCmd() tea.Cmd {
 	// Capture bridge reference directly to avoid closure issues
 	bridge := m.bridge
 	ctx := m.ctx
+	groupScope := m.groupScope
 	return func() tea.Msg {
 		debugf("fetchDataCmd executing, bridge=%v", bridge != nil)
 		if bridge == nil {
