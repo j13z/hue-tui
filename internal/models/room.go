@@ -6,6 +6,8 @@ type Room struct {
 	ID string
 	// Legacy v1 identifier, e.g. /groups/3
 	IDV1 string
+	// Whether this group is a zone rather than a room
+	IsZone bool
 	// User-friendly name
 	Name string
 	// Lights in this room
@@ -14,6 +16,8 @@ type Room struct {
 	GroupedLightID string
 	// Device IDs that belong to this room
 	DeviceIDs []string
+	// Light IDs from zone children
+	LightIDs []string
 	// Calculated state: all lights are on
 	AllOn bool
 	// Calculated state: at least one light is on
