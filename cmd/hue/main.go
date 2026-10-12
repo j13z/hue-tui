@@ -12,7 +12,7 @@ import (
 
 func main() {
 	demoMode := flag.Bool("demo", os.Getenv("HUE_DEMO") != "", "Use demo bridge")
-	group := flag.String("group", "", "Show only this room (Hue v1 group ID or v2 room UUID)")
+	group := flag.String("group", "", "Comma-separated Hue room/zone IDs (v1 numeric IDs or v2 UUIDs)")
 	flag.Parse()
 
 	if *demoMode {
