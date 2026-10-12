@@ -58,7 +58,7 @@ func loadStepConfigWithTuning(tuning *config.TuningConfig) StepConfig {
 }
 
 func fineAdjustmentKey(key string) bool {
-	if strings.HasPrefix(key, "alt+") {
+	if strings.HasPrefix(key, "alt+") || strings.HasPrefix(key, "shift+") || strings.HasPrefix(key, "ctrl+") {
 		return true
 	}
 	switch key {
