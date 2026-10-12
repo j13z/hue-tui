@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/angristan/hue-tui/internal/api"
+	"github.com/angristan/hue-tui/internal/config"
 	"github.com/angristan/hue-tui/internal/models"
 	"github.com/angristan/hue-tui/internal/tui/messages"
 )
@@ -138,6 +139,11 @@ func NewMainModel(keys interface{}) MainModel {
 // Init initializes the main screen
 func (m MainModel) Init() tea.Cmd {
 	return m.spinner.Tick
+}
+
+// SetTuning applies optional persistent settings to the main view.
+func (m *MainModel) SetTuning(tuning *config.TuningConfig) {
+	m.steps = loadStepConfigWithTuning(tuning)
 }
 
 func (m *MainModel) SetSize(width, height int) {
@@ -306,7 +312,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 		}
 
 		key := msg.String()
-		fine := strings.HasPrefix(key, "alt+")
+		fine := fineAdjustmentKey(key)
 
 		switch key {
 		case "q", "ctrl+c":
@@ -352,7 +358,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			}
 			m.ensureVisible()
 
-		case "left", "h", "alt+left", "alt+h":
+		case "left", "h", "H", "alt+left", "alt+h":
 			step := pickStep(m.steps.Brightness, m.steps.FineBrightness, fine)
 			if m.IsRoomSelected() {
 				// Dim all lights in room
@@ -389,7 +395,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				}
 			}
 
-		case "right", "l", "alt+right", "alt+l":
+		case "right", "l", "L", "alt+right", "alt+l":
 			step := pickStep(m.steps.Brightness, m.steps.FineBrightness, fine)
 			if m.IsRoomSelected() {
 				// Brighten all lights in room
@@ -473,7 +479,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				}
 			}
 
-		case "w", "alt+w":
+		case "w", "W", "alt+w":
 			step := pickStep(m.steps.Temperature, m.steps.FineTemperature, fine)
 			if light := m.SelectedLight(); light != nil && light.SupportsColorTemp && light.Color != nil {
 				// Switch to temperature mode and make warmer (higher mirek = warmer)
@@ -490,7 +496,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorTempCmd(bridge, light.ID, newMirek))
 			}
 
-		case "c", "alt+c":
+		case "c", "C", "alt+c":
 			step := pickStep(m.steps.Temperature, m.steps.FineTemperature, fine)
 			if light := m.SelectedLight(); light != nil && light.SupportsColorTemp && light.Color != nil {
 				// Switch to temperature mode and make cooler (lower mirek = cooler)
@@ -507,7 +513,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorTempCmd(bridge, light.ID, newMirek))
 			}
 
-		case "[", "alt+[":
+		case "[", "{", "alt+[":
 			step := hueUnits(pickStep(m.steps.Hue, m.steps.FineHue, fine))
 			// Decrease hue (rotate color wheel left)
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
@@ -530,7 +536,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorHSCmd(bridge, light.ID, light.Color.Hue, light.Color.Saturation))
 			}
 
-		case "]", "alt+]":
+		case "]", "}", "alt+]":
 			step := hueUnits(pickStep(m.steps.Hue, m.steps.FineHue, fine))
 			// Increase hue (rotate color wheel right)
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
@@ -553,7 +559,7 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 				cmds = append(cmds, m.setColorHSCmd(bridge, light.ID, light.Color.Hue, light.Color.Saturation))
 			}
 
-		case "-", "alt+-":
+		case "-", "_", "alt+-":
 			step := satUnits(pickStep(m.steps.Saturation, m.steps.FineSaturation, fine))
 			// Decrease saturation
 			if light := m.SelectedLight(); light != nil && light.SupportsColor && light.Color != nil {
@@ -1444,7 +1450,7 @@ func (m MainModel) renderHelp() string {
 		styleHelpKey.Render("↑↓") + " nav",
 		styleHelpKey.Render("pgup/dn") + " scroll",
 		styleHelpKey.Render("←→") + " dim",
-		styleHelpKey.Render("alt+←→") + " fine",
+		styleHelpKey.Render("H/L") + " fine",
 		styleHelpKey.Render("space") + " toggle",
 		styleHelpKey.Render("w/c") + " temp",
 		styleHelpKey.Render("[]") + " hue",
@@ -1465,7 +1471,7 @@ func (m MainModel) renderHelp() string {
 		keys = []string{
 			styleHelpKey.Render("↑↓") + " nav",
 			styleHelpKey.Render("←→") + " dim",
-			styleHelpKey.Render("alt+←→") + " fine",
+			styleHelpKey.Render("H/L") + " fine",
 			styleHelpKey.Render("space") + " toggle",
 			styleHelpKey.Render("s") + " scenes",
 			styleHelpKey.Render("q") + " quit",
