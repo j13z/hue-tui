@@ -81,6 +81,7 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `k` / `↑` | Move up             |
 | `h` / `←` | Decrease brightness |
 | `l` / `→` | Increase brightness |
+| `Alt+←/→` | Fine-adjust brightness (`Alt+h/l` also works) |
 
 ### Light Control
 
@@ -89,8 +90,12 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `Space` | Toggle light on/off      |
 | `0`     | Set brightness to 100%   |
 | `1-9`   | Set brightness to 10-90% |
-| `w`     | Warmer color temperature |
-| `c`     | Cooler color temperature |
+| `w` / `c` | Warmer / cooler color temperature |
+| `Alt+w/c` | Fine-adjust color temperature |
+| `[` / `]` | Decrease / increase hue |
+| `Alt+[/]` | Fine-adjust hue |
+| `-` / `=` | Decrease / increase saturation |
+| `Alt+-/=` | Fine-adjust saturation |
 
 ### Room Control
 
@@ -108,6 +113,25 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `Tab` | Toggle side panel |
 | `r`   | Refresh           |
 | `q`   | Quit              |
+
+## Tuning increments
+
+Regular and Alt-modified fine steps can be configured using environment variables:
+
+| Variable | Default | Unit |
+| --- | ---: | --- |
+| `HUE_TUI_BRIGHTNESS_STEP` | 5 | percentage points |
+| `HUE_TUI_FINE_BRIGHTNESS_STEP` | 1 | percentage points |
+| `HUE_TUI_TEMPERATURE_STEP` | 25 | mirek |
+| `HUE_TUI_FINE_TEMPERATURE_STEP` | 5 | mirek |
+| `HUE_TUI_HUE_STEP` | 20 | degrees |
+| `HUE_TUI_FINE_HUE_STEP` | 2 | degrees |
+| `HUE_TUI_SATURATION_STEP` | 10 | percentage points |
+| `HUE_TUI_FINE_SATURATION_STEP` | 1 | percentage points |
+
+For example, `HUE_TUI_BRIGHTNESS_STEP=3 HUE_TUI_FINE_BRIGHTNESS_STEP=1 hue --group 3,81`.
+
+Your terminal must send distinct Alt-key events. In iTerm2, check Profile → Keys mappings for Option+arrow combinations if the events do not reach the application.
 
 ## Configuration
 
