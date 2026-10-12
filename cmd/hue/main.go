@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -10,16 +11,11 @@ import (
 )
 
 func main() {
-	// Check for demo mode
-	demoMode := os.Getenv("HUE_DEMO") != ""
-	for _, arg := range os.Args[1:] {
-		if arg == "--demo" || arg == "-demo" {
-			demoMode = true
-			break
-		}
-	}
+	demoMode := flag.Bool("demo", os.Getenv("HUE_DEMO") != "", "Use demo bridge")
+	group := flag.String("group", "", "Show only this room (Hue v1 group ID or v2 room UUID)")
+	flag.Parse()
 
-	if demoMode {
+	if *demoMode {
 		fmt.Fprintln(os.Stderr, "[hue] Demo mode enabled")
 	}
 
@@ -31,7 +27,8 @@ func main() {
 	}
 
 	// Create and run the application
-	model := tui.NewModel(cfg, demoMode)
+	model := tui.NewModel(cfg, *demoMode)
+	model.SetGroupScope(*group)
 	p := tea.NewProgram(
 		model,
 		tea.WithAltScreen(),

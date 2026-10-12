@@ -429,6 +429,12 @@ func (m Model) fetchDataCmd() tea.Cmd {
 		if err != nil {
 			return messages.ErrorMsg{Err: err}
 		}
+		if groupScope != "" {
+			rooms, scenes, err = scopeGroup(rooms, scenes, groupScope)
+			if err != nil {
+				return messages.ErrorMsg{Err: err}
+			}
+		}
 
 		return messages.DataFetchedMsg{Rooms: rooms, Scenes: scenes}
 	}

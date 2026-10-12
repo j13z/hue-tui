@@ -238,6 +238,7 @@ type roomResource struct {
 func (r *roomResource) toModel() *models.Room {
 	room := &models.Room{
 		ID:   r.ID,
+		IDV1: r.IDV1,
 		Name: r.Metadata.Name,
 	}
 
