@@ -185,10 +185,19 @@ func (r *lightResource) toModel() *models.Light {
 }
 
 // GetRooms retrieves all rooms from the bridge
-func (b *HueBridge) GetRooms(ctx context.Context) (rooms []*models.Room, err error) {
-	resp, err := b.doRequest(ctx, "GET", "/clip/v2/resource/room", nil)
+func (b *HueBridge) GetRooms(ctx context.Context) ([]*models.Room, error) {
+	return b.getGroups(ctx, "room")
+}
+
+// GetZones fetches Hue zones, whose children typically reference light resources.
+func (b *HueBridge) GetZones(ctx context.Context) ([]*models.Room, error) {
+	return b.getGroups(ctx, "zone")
+}
+
+func (b *HueBridge) getGroups(ctx context.Context, kind string) (rooms []*models.Room, err error) {
+	resp, err := b.doRequest(ctx, "GET", "/clip/v2/resource/"+kind, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get rooms: %w", err)
+		return nil, fmt.Errorf("failed to get %s: %w", kind, err)
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil && err == nil {
@@ -198,7 +207,7 @@ func (b *HueBridge) GetRooms(ctx context.Context) (rooms []*models.Room, err err
 
 	var apiResp apiResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return nil, fmt.Errorf("failed to decode rooms response: %w", err)
+		return nil, fmt.Errorf("failed to decode group response: %w", err)
 	}
 
 	if len(apiResp.Errors) > 0 {
@@ -207,12 +216,13 @@ func (b *HueBridge) GetRooms(ctx context.Context) (rooms []*models.Room, err err
 
 	var rawRooms []roomResource
 	if err := json.Unmarshal(apiResp.Data, &rawRooms); err != nil {
-		return nil, fmt.Errorf("failed to parse rooms: %w", err)
+		return nil, fmt.Errorf("failed to parse groups: %w", err)
 	}
 
 	result := make([]*models.Room, len(rawRooms))
 	for i, raw := range rawRooms {
 		result[i] = raw.toModel()
+		result[i].IsZone = kind == "zone"
 	}
 
 	return result, nil
@@ -253,8 +263,11 @@ func (r *roomResource) toModel() *models.Room {
 
 	// Collect device IDs from children
 	for _, child := range r.Children {
-		if child.Rtype == "device" {
+		switch child.Rtype {
+		case "device":
 			room.DeviceIDs = append(room.DeviceIDs, child.Rid)
+		case "light":
+			room.LightIDs = append(room.LightIDs, child.Rid)
 		}
 	}
 
@@ -577,6 +590,36 @@ func (b *HueBridge) AssignLightsToRooms(lights []*models.Light, rooms []*models.
 	return result
 }
 
+// AssignLightsToZones keeps zone membership independent from room ownership.
+func AssignLightsToZones(lights []*models.Light, zones []*models.Room) []*models.Room {
+	byID := make(map[string]*models.Light, len(lights))
+	byDevice := make(map[string][]*models.Light)
+	for _, light := range lights {
+		byID[light.ID] = light
+		byDevice[light.DeviceID] = append(byDevice[light.DeviceID], light)
+	}
+	for _, zone := range zones {
+		zone.Lights = nil
+		seen := make(map[string]bool)
+		add := func(light *models.Light) {
+			if light != nil && !seen[light.ID] {
+				zone.Lights = append(zone.Lights, light)
+				seen[light.ID] = true
+			}
+		}
+		for _, id := range zone.LightIDs {
+			add(byID[id])
+		}
+		for _, id := range zone.DeviceIDs {
+			for _, light := range byDevice[id] {
+				add(light)
+			}
+		}
+		zone.UpdateState()
+	}
+	return zones
+}
+
 // FetchAll retrieves all resources from the bridge
 func (b *HueBridge) FetchAll(ctx context.Context) ([]*models.Room, []*models.Scene, error) {
 	// Fetch rooms (includes device IDs in children)
@@ -585,10 +628,15 @@ func (b *HueBridge) FetchAll(ctx context.Context) ([]*models.Room, []*models.Sce
 		return nil, nil, fmt.Errorf("failed to fetch rooms: %w", err)
 	}
 
-	// Build room lookup for scene assignment
-	roomByID := make(map[string]*models.Room)
-	for _, room := range rooms {
-		roomByID[room.ID] = room
+	// Zones can contain lights from multiple rooms.
+	zones, err := b.GetZones(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch zones: %w", err)
+	}
+
+	groupByID := make(map[string]*models.Room)
+	for _, group := range append(rooms, zones...) {
+		groupByID[group.ID] = group
 	}
 
 	// Fetch lights
@@ -634,21 +682,23 @@ func (b *HueBridge) FetchAll(ctx context.Context) ([]*models.Room, []*models.Sce
 		}()
 	}
 
-	// Assign lights to rooms using device IDs
+	// Assign physical rooms first; zones may share those light pointers.
 	rooms = b.AssignLightsToRooms(lights, rooms)
+	zones = AssignLightsToZones(lights, zones)
+	groups := append(rooms, zones...)
 
 	// Fetch scenes
 	scenes, err := b.GetScenes(ctx)
 	if err != nil {
-		return rooms, nil, fmt.Errorf("failed to fetch scenes: %w", err)
+		return nil, nil, fmt.Errorf("failed to fetch scenes: %w", err)
 	}
 
 	// Add room names to scenes
 	for _, scene := range scenes {
-		if room, ok := roomByID[scene.RoomID]; ok {
-			scene.RoomName = room.Name
+		if group, ok := groupByID[scene.RoomID]; ok {
+			scene.RoomName = group.Name
 		}
 	}
 
-	return rooms, scenes, nil
+	return groups, scenes, nil
 }
