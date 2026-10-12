@@ -105,12 +105,14 @@ type MainModel struct {
 
 	// Mouse drag state; only the selected slider receives changes.
 	mouseDragging bool
+	mouseDragKind string // brightness or temperature
 	mouseDragItem int
 	mouseDragX, mouseDragWidth int
 	mouseDragValue, mouseDragSent int
 	mouseDragSentAt time.Time
 
 	showPanel   bool
+	showColorControls bool // Temperature is the preferred default for capable lights.
 	searchMode  bool
 	searchInput textinput.Model
 	searchQuery string
@@ -649,6 +651,13 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			m.searchInput.Focus()
 			return m, textinput.Blink
 
+		case "m":
+			// Switch the details panel between ambiance and color controls.
+			// This changes only the UI; actual light mode changes on adjustment.
+			if light := m.SelectedLight(); light != nil && light.SupportsColor {
+				m.showColorControls = !m.showColorControls
+			}
+
 		case "tab":
 			m.showPanel = !m.showPanel
 
@@ -738,7 +747,7 @@ func (m MainModel) View() string {
 			if idx > m.scrollOffset {
 				content.WriteString("\n")
 			}
-			content.WriteString(m.renderRoomHeader(item.room, isSelected))
+			content.WriteString(m.renderRoomHeader(item.room, isSelected, contentWidth))
 			content.WriteString("\n")
 		} else {
 			// Light row - no extra spacing needed
@@ -796,35 +805,25 @@ func (m MainModel) View() string {
 	return b.String()
 }
 
-func (m MainModel) renderRoomHeader(room *models.Room, selected bool) string {
-	// Cursor - always same width character
+func (m MainModel) renderRoomHeader(room *models.Room, selected bool, width int) string {
 	cursor := styleMuted.Render("  ")
 	if selected {
 		cursor = styleSelected.Render("> ")
 	}
-
-	// Room name (always use styleRoomName to preserve MarginTop and avoid flicker)
-	nameStyle := styleRoomName
-
-	// Count lights on
 	lightsOn := 0
-	totalBrightness := 0
 	for _, light := range room.Lights {
 		if light.On {
 			lightsOn++
-			totalBrightness += light.BrightnessPct()
 		}
 	}
-
-	// Room summary
-	summary := fmt.Sprintf("(%d/%d on", lightsOn, len(room.Lights))
-	if lightsOn > 0 {
-		avgBrightness := totalBrightness / lightsOn
-		summary += fmt.Sprintf(" • %d%%", avgBrightness)
-	}
-	summary += ")"
-
-	return fmt.Sprintf("%s%s %s", cursor, nameStyle.Render(room.Name), styleMuted.Render(summary))
+	brightness := room.AverageBrightness()
+	summary := fmt.Sprintf("%s (%d/%d on • %d%%)", room.Name, lightsOn, len(room.Lights), brightness)
+	nameWidth, barWidth := lightBarLayout(width)
+	// Align room/zone brightness bars with the individual light sliders.
+	label := styleRoomName.Render(truncate(summary, nameWidth))
+	bar := m.renderBrightnessBar(brightness, lightsOn > 0, barWidth)
+	pct := styleBrightness.Render(fmt.Sprintf("%3d%%", brightness))
+	return fmt.Sprintf("%s  %s  %s %s", cursor, label, bar, pct)
 }
 
 func (m MainModel) renderLightRow(light *models.Light, selected bool, width int) string {
@@ -941,8 +940,28 @@ func (m MainModel) renderPanel(panelWidth int) string {
 	content.WriteString(m.renderBrightnessBar(light.BrightnessPct(), light.On, barWidth))
 	content.WriteString("\n\n")
 
-	// Color mode display
-	if light.Color != nil {
+	// Prefer the adjustable white temperature (ambiance) even when a color
+	// lamp currently operates in XY mode. Clicking the slider switches it to
+	// temperature mode; merely viewing it does not change the light.
+	if light.SupportsColorTemp && !m.showColorControls {
+		mirek := 326
+		active := light.Color != nil && light.Color.Mode == models.ColorModeColorTemp &&
+			light.Color.Mirek >= 153 && light.Color.Mirek <= 500
+		if active {
+			mirek = int(light.Color.Mirek)
+		}
+		content.WriteString(styleMuted.Render("Mode: "))
+		content.WriteString("Temperature  (m: color)\n\n")
+		content.WriteString(styleMuted.Render("Temp: "))
+		if active {
+			content.WriteString(fmt.Sprintf("%dK\n", 1000000/mirek))
+		} else {
+			content.WriteString(fmt.Sprintf("%dK (adjust to activate)\n", 1000000/mirek))
+		}
+		content.WriteString(m.renderTempBar(mirek, barWidth))
+		content.WriteString("\n")
+		content.WriteString(styleMuted.Render("cool ← → warm"))
+	} else if light.Color != nil {
 		// For the color preview, show color at full brightness so it's visible
 		r, g, bl := getColorPreview(light.Color)
 		colorBox := lipgloss.NewStyle().
@@ -1446,6 +1465,7 @@ func (m MainModel) renderHelp() string {
 		styleHelpKey.Render("mouse") + " select/drag",
 		styleHelpKey.Render("space") + " toggle",
 		styleHelpKey.Render("w/c") + " temp",
+		styleHelpKey.Render("m") + " mode",
 		styleHelpKey.Render("[]") + " hue",
 		styleHelpKey.Render("-/=") + " sat",
 		styleHelpKey.Render("a/x") + " room",
