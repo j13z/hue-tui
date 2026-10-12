@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"testing"
 
@@ -143,5 +145,33 @@ func TestZoneChildrenAndMembership(t *testing.T) {
 	zones := AssignLightsToZones([]*models.Light{lightA, lightB}, []*models.Room{zone})
 	if len(zones) != 1 || len(zones[0].Lights) != 1 || zones[0].Lights[0] != lightA {
 		t.Fatalf("zone member mismatch: %+v", zones)
+	}
+}
+
+func TestHueColorTempModeWhenMirekIsValid(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		valid bool
+		wantMode models.ColorMode
+	}{
+		{"temperature active", true, models.ColorModeColorTemp},
+		{"XY active", false, models.ColorModeXY},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var raw lightResource
+			body := `{"id":"lamp","on":{"on":true},"dimming":{"brightness":50},
+				"color":{"xy":{"x":0.4,"y":0.3}},
+				"color_temperature":{"mirek":400,"mirek_valid":` + fmt.Sprintf("%t", test.valid) + `}}`
+			if err := json.Unmarshal([]byte(body), &raw); err != nil {
+				t.Fatal(err)
+			}
+			light := raw.toModel()
+			if light.Color == nil || light.Color.Mode != test.wantMode {
+				t.Fatalf("wrong active color mode: %+v", light.Color)
+			}
+			if test.valid && light.Color.Mirek != 400 {
+				t.Fatalf("lost valid temperature: %d", light.Color.Mirek)
+			}
+		})
 	}
 }
