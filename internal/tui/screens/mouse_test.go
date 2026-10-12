@@ -193,3 +193,26 @@ func TestMouseBrightnessReleaseUsesFinalPosition(t *testing.T) {
 		t.Fatalf("release position lost: sent=%d", sent)
 	}
 }
+
+func TestMouseModeToggleWithoutSendingHueCommand(t *testing.T) {
+	m := mouseTestModel()
+	m.selectedIndex = 1
+	light := m.items[1].light
+	light.SupportsColor = true
+	light.SupportsColorTemp = true
+	light.Color = &models.Color{Mode: models.ColorModeXY, Brightness: light.Brightness}
+
+	x := m.contentWidth() + 5
+	y := m.contentStartY() + 9
+	if !m.modeToggleHit(x, y) {
+		t.Fatal("ambiance/color mode label must be clickable")
+	}
+	m, cmd := m.Update(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, nil)
+	if cmd != nil || !m.showColorControls || light.Color.Mode != models.ColorModeXY {
+		t.Fatal("clicking Mode should only change UI, not bridge color mode")
+	}
+	m, _ = m.Update(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, nil)
+	if m.showColorControls {
+		t.Fatal("second click must return to temperature panel")
+	}
+}
