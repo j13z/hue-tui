@@ -26,7 +26,7 @@ type Light struct {
 
 // BrightnessPct returns the brightness as a percentage (0-100)
 func (l *Light) BrightnessPct() int {
-	return int(float64(l.Brightness) / 254.0 * 100)
+	return (int(l.Brightness)*100 + 127) / 254
 }
 
 // SetBrightnessPct sets brightness from a percentage (0-100)
@@ -37,7 +37,7 @@ func (l *Light) SetBrightnessPct(pct int) {
 	if pct > 100 {
 		pct = 100
 	}
-	l.Brightness = uint8(float64(pct) / 100.0 * 254)
+	l.Brightness = uint8((pct*254 + 50) / 100)
 }
 
 // IsColorLight returns true if the light supports any color features
