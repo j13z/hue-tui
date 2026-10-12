@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/angristan/hue-tui/internal/models"
 	"math"
 	"testing"
+
+	"github.com/angristan/hue-tui/internal/models"
 )
 
 func TestHSToXY(t *testing.T) {
