@@ -17,12 +17,25 @@ type BridgeConfig struct {
 	BridgeID string `json:"bridge_id"`
 }
 
+// TuningConfig contains optional step-size overrides.
+type TuningConfig struct {
+	BrightnessStep      int `json:"brightness_step,omitempty"`
+	FineBrightnessStep  int `json:"fine_brightness_step,omitempty"`
+	TemperatureStep     int `json:"temperature_step,omitempty"`
+	FineTemperatureStep int `json:"fine_temperature_step,omitempty"`
+	HueStep             int `json:"hue_step,omitempty"`
+	FineHueStep         int `json:"fine_hue_step,omitempty"`
+	SaturationStep      int `json:"saturation_step,omitempty"`
+	FineSaturationStep  int `json:"fine_saturation_step,omitempty"`
+}
+
 // Config stores all application configuration
 type Config struct {
 	// List of configured bridges
 	Bridges []BridgeConfig `json:"bridges"`
 	// ID of the last used bridge
 	LastBridgeID string `json:"last_bridge_id,omitempty"`
+	Tuning       *TuningConfig `json:"tuning,omitempty"`
 }
 
 var (
