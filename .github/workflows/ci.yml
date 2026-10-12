@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master, j13z/develop]
+    branches: [master]
 
 permissions:
   contents: write
