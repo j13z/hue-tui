@@ -4,6 +4,8 @@ package models
 type Room struct {
 	// Unique identifier from the bridge
 	ID string
+	// Legacy v1 identifier, e.g. /groups/3
+	IDV1 string
 	// User-friendly name
 	Name string
 	// Lights in this room
