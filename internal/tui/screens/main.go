@@ -103,6 +103,13 @@ type MainModel struct {
 	items         []listItem // Unified list of rooms and lights
 	lightToRoom   map[string]*models.Room
 
+	// Mouse drag state; only the selected slider receives changes.
+	mouseDragging bool
+	mouseDragItem int
+	mouseDragX, mouseDragWidth int
+	mouseDragValue, mouseDragSent int
+	mouseDragSentAt time.Time
+
 	showPanel   bool
 	searchMode  bool
 	searchInput textinput.Model
@@ -210,6 +217,7 @@ func (m *MainModel) SetData(rooms []*models.Room, scenes []*models.Scene) {
 	m.scenes = scenes
 	m.loading = false
 	m.scrollOffset = 0
+	m.mouseDragging = false
 	m.rebuildLightList()
 }
 
@@ -650,6 +658,9 @@ func (m MainModel) Update(msg tea.Msg, bridge api.BridgeClient, addPending Pendi
 			return m, tea.Batch(func() tea.Msg { return messages.RefreshMsg{} }, tea.Batch(cmds...))
 		}
 
+	case tea.MouseMsg:
+		return m.handleMouse(msg, bridge, addPending)
+
 	case spinner.TickMsg:
 		if m.loading {
 			var cmd tea.Cmd
@@ -829,27 +840,8 @@ func (m MainModel) renderLightRow(light *models.Light, selected bool, width int)
 		icon = styleLightOn.Render("●")
 	}
 
-	// Calculate layout dynamically based on available width
-	// Fixed parts: cursor(2) + icon(1) + space(1) + spaces(2) + space(1) + pct(4) + color(2) = 13
-	fixedParts := 13
-	availableForNameAndBar := width - fixedParts
-
-	// Split available space: ~60% for name, ~40% for bar
-	barWidth := availableForNameAndBar * 35 / 100
-	if barWidth < 8 {
-		barWidth = 8
-	}
-	if barWidth > 20 {
-		barWidth = 20
-	}
-
-	nameWidth := availableForNameAndBar - barWidth
-	if nameWidth < 10 {
-		nameWidth = 10
-	}
-	if nameWidth > 45 {
-		nameWidth = 45
-	}
+	// Keep mouse hitboxes in sync with the rendering geometry.
+	nameWidth, barWidth := lightBarLayout(width)
 
 	// Name
 	nameStyle := styleLightNameDim
@@ -1451,6 +1443,7 @@ func (m MainModel) renderHelp() string {
 		styleHelpKey.Render("pgup/dn") + " scroll",
 		styleHelpKey.Render("←→") + " dim",
 		styleHelpKey.Render("H/L") + " fine",
+		styleHelpKey.Render("mouse") + " select/drag",
 		styleHelpKey.Render("space") + " toggle",
 		styleHelpKey.Render("w/c") + " temp",
 		styleHelpKey.Render("[]") + " hue",
@@ -1472,6 +1465,7 @@ func (m MainModel) renderHelp() string {
 			styleHelpKey.Render("↑↓") + " nav",
 			styleHelpKey.Render("←→") + " dim",
 			styleHelpKey.Render("H/L") + " fine",
+		styleHelpKey.Render("mouse") + " select/drag",
 			styleHelpKey.Render("space") + " toggle",
 			styleHelpKey.Render("s") + " scenes",
 			styleHelpKey.Render("q") + " quit",
