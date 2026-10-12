@@ -109,3 +109,87 @@ func TestMouseBarPercent(t *testing.T) {
 		t.Fatalf("drag beyond right should clamp, got %d", got)
 	}
 }
+
+func TestGroupSliderMouseUpAlwaysCommits(t *testing.T) {
+	m := mouseTestModel()
+	nameWidth, barWidth := lightBarLayout(m.contentWidth())
+	start := 6 + nameWidth
+	if idx, _, _, hit := m.brightnessBarHit(start, 2); !hit || idx != 0 {
+		t.Fatalf("group header must have an actionable brightness slider")
+	}
+	var sent []string
+	pending := func(id, field string, value interface{}, dir Direction) {
+		if field == "brightness" {
+			sent = append(sent, id)
+		}
+	}
+	press := tea.MouseMsg{X: start + barWidth - 1, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	m, _ = m.Update(press, nil, pending)
+	if len(sent) != 0 {
+		t.Fatalf("preview must not write before release: %v", sent)
+	}
+	// No motion: even if press and release are identical, send final value.
+	release := tea.MouseMsg{X: start + barWidth - 1, Y: 2, Action: tea.MouseActionRelease}
+	m, cmd := m.Update(release, nil, pending)
+	if cmd == nil || len(sent) != 2 {
+		t.Fatalf("release must schedule brightness for both group lights: %v", sent)
+	}
+	for _, light := range m.rooms[0].Lights {
+		if light.BrightnessPct() != 100 {
+			t.Fatalf("group drag didn't update %s", light.ID)
+		}
+	}
+}
+
+func TestTemperatureSliderFromXYCommitsOnRelease(t *testing.T) {
+	m := mouseTestModel()
+	m.selectedIndex = 1
+	light := m.items[1].light
+	light.SupportsColorTemp = true
+	light.Color = &models.Color{Mode: models.ColorModeXY, Brightness: light.Brightness}
+	start := m.contentWidth() + 5
+	y := m.contentStartY() + 12
+	if _, _, hit := m.temperatureBarHit(start, y); !hit {
+		t.Fatalf("expected temperature slider in default ambiance panel")
+	}
+	var sent int
+	pending := func(id, field string, value interface{}, dir Direction) {
+		if field == "color_temp" {
+			sent++
+		}
+	}
+	m, _ = m.Update(tea.MouseMsg{X: start, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, pending)
+	if sent != 0 {
+		t.Fatal("temperature preview must not send before release")
+	}
+	if light.Color.Mode != models.ColorModeColorTemp {
+		t.Fatal("temperature slider must preview ambiance mode")
+	}
+	m, cmd := m.Update(tea.MouseMsg{X: start + 24, Y: y, Action: tea.MouseActionRelease}, nil, pending)
+	if cmd == nil || sent != 1 || light.Color.Mirek != 500 {
+		t.Fatalf("mouse up must send final temperature, sent=%d mirek=%d", sent, light.Color.Mirek)
+	}
+	if m.mouseDragging {
+		t.Fatal("dragging must end on release")
+	}
+}
+
+func TestMouseBrightnessReleaseUsesFinalPosition(t *testing.T) {
+	m := mouseTestModel()
+	nameWidth, barWidth := lightBarLayout(m.contentWidth())
+	start := 6 + nameWidth
+	var sent int
+	pending := func(id, field string, value interface{}, dir Direction) {
+		if field == "brightness" {
+			sent = value.(int)
+		}
+	}
+	m, _ = m.Update(tea.MouseMsg{X: start, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, pending)
+	if sent != 0 {
+		t.Fatalf("unexpected preview write: %d", sent)
+	}
+	m, _ = m.Update(tea.MouseMsg{X: start + barWidth - 1, Y: 3, Action: tea.MouseActionRelease}, nil, pending)
+	if sent != 100 || m.items[1].light.BrightnessPct() != 100 {
+		t.Fatalf("release position lost: sent=%d", sent)
+	}
+}
