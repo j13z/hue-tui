@@ -221,6 +221,7 @@ func (b *HueBridge) GetRooms(ctx context.Context) (rooms []*models.Room, err err
 // roomResource represents the V2 API room resource
 type roomResource struct {
 	ID       string `json:"id"`
+	IDV1     string `json:"id_v1"`
 	Metadata struct {
 		Name      string `json:"name"`
 		Archetype string `json:"archetype"`
