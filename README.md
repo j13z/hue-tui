@@ -59,6 +59,16 @@ On first run, the app will:
 2. Prompt you to press the link button on your bridge
 3. Save the connection credentials for future use
 
+### Limit the UI to a room
+
+Pass a Hue API v1 numeric group ID (such as `3`) to show only that room, its lights and its scenes:
+
+```bash
+hue --group 3
+```
+
+A v2 room UUID also works: `hue --group <room-uuid>`. Without `--group`, all rooms are shown. An unknown ID displays an error instead of falling back to all rooms. This scopes the UI, not the API key's permissions.
+
 ## Keybindings
 
 ### Navigation
