@@ -1567,11 +1567,27 @@ func (m MainModel) setGroupOnCmd(bridge api.BridgeClient, groupID string, on boo
 	}
 }
 
+// truncate pads or ellipsizes to a terminal-cell width (not a byte count).
+// Group names may include Unicode; their mouse hitboxes must stay aligned.
 func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s + strings.Repeat(" ", maxLen-len(s))
+	if maxLen <= 0 {
+		return ""
 	}
-	return s[:maxLen-1] + "…"
+	width := lipgloss.Width(s)
+	if width <= maxLen {
+		return s + strings.Repeat(" ", maxLen-width)
+	}
+	var b strings.Builder
+	w := 0
+	for _, r := range s {
+		rw := lipgloss.Width(string(r))
+		if w+rw >= maxLen {
+			break
+		}
+		b.WriteRune(r)
+		w += rw
+	}
+	return b.String() + "…" + strings.Repeat(" ", maxLen-w-1)
 }
 
 func max(a, b int) int {
