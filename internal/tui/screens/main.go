@@ -109,6 +109,7 @@ type MainModel struct {
 	mouseDragItem int
 	mouseDragX, mouseDragWidth int
 	mouseDragValue, mouseDragSent int
+	mouseDragWasOff map[string]bool
 	mouseDragSentAt time.Time
 
 	showPanel   bool
