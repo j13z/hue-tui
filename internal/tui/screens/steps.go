@@ -28,7 +28,7 @@ func readStep(name string, defaultValue, maximum int) int {
 
 func loadStepConfig() StepConfig {
 	return StepConfig{
-		Brightness:      readStep("HUE_TUI_BRIGHTNESS_STEP", 5, 100),
+		Brightness:      readStep("HUE_TUI_BRIGHTNESS_STEP", 3, 100),
 		FineBrightness:  readStep("HUE_TUI_FINE_BRIGHTNESS_STEP", 1, 100),
 		Temperature:     readStep("HUE_TUI_TEMPERATURE_STEP", 25, 347),
 		FineTemperature: readStep("HUE_TUI_FINE_TEMPERATURE_STEP", 5, 347),
