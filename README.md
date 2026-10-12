@@ -18,7 +18,7 @@ A terminal-based Philips Hue control application written in Go.
 - **Real-time Updates**: Server-sent events for live state updates
 - **Search**: Filter lights by name
 - **Keyboard-driven**: Full vim-style navigation
-- **Mouse input**: Click to select, click a light status dot to toggle, scroll with the wheel, click/drag brightness bars (including the details panel); drag requests are throttled
+- **Mouse input**: Click to select, toggle light status dots, scroll with the wheel, and drag individual or room/zone brightness bars. The final value is committed on mouse-up.
 
 ## Installation
 
@@ -88,8 +88,10 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 
 - Click a room, zone or light to select it.
 - Click a light's status dot to toggle it.
-- Click or drag a brightness bar in the list or right-hand details panel to set the brightness (1–100%). Dragging a room/zone slider adjusts all its lights.
-- Scroll with the mouse wheel. Requests during dragging are rate-limited; the final value is sent on release.
+- Click or drag a brightness bar in the list (including room/zone headers) or details panel to set brightness (1–100%). Group drags set all member lights to the selected brightness.
+- The details panel defaults to white temperature for capable lights. Drag its temperature bar from cool to warm, even if the light currently uses XY color mode.
+- Use `m` to switch the panel between temperature/ambiance and the optional color view. Simply switching the view does not change the light.
+- Scroll with the mouse wheel. Dragging previews values locally; **each mouse-up sends the final setting once** (no intermediate HTTP requests that could overwrite it).
 
 ### Light Control
 
@@ -100,6 +102,7 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `1-9`   | Set brightness to 10-90% |
 | `w` / `c` | Warmer / cooler color temperature |
 | `W` / `C` | Fine-adjust color temperature; `Alt+w/c` also works |
+| `m` | Toggle temperature/ambiance vs. color controls in the details panel |
 | `[` / `]` | Decrease / increase hue |
 | `{` / `}` | Fine-adjust hue; `Alt+[/]` also works |
 | `-` / `=` | Decrease / increase saturation |
