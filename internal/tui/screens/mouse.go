@@ -72,6 +72,18 @@ func (m MainModel) panelBarHit(x, y int) (start, width int, ok bool) {
 }
 
 // temperatureBarHit matches the preferred ambiance panel, not the color gadget UI.
+// The Mode row in the light details panel switches between ambiance and
+// optional color controls without sending a command to the bridge.
+func (m MainModel) modeToggleHit(x, y int) bool {
+	light := m.SelectedLight()
+	if light == nil || !light.SupportsColorTemp || !light.SupportsColor || !m.showPanel || m.width < 80 || m.loading {
+		return false
+	}
+	start := m.contentWidth() + 5
+	panelWidth := max(30, min(45, m.width*30/100))
+	return y == m.contentStartY()+9 && x >= start && x < start+panelWidth-8
+}
+
 func (m MainModel) temperatureBarHit(x, y int) (start, width int, ok bool) {
 	light := m.SelectedLight()
 	if light == nil || !light.SupportsColorTemp || m.showColorControls {
@@ -254,6 +266,10 @@ func (m MainModel) handleMouse(msg tea.MouseMsg, bridge api.BridgeClient, addPen
 
 	case tea.MouseActionPress:
 		if msg.Button != tea.MouseButtonLeft {
+			return m, nil
+		}
+		if m.modeToggleHit(msg.X, msg.Y) {
+			m.showColorControls = !m.showColorControls
 			return m, nil
 		}
 		// The temperature slider is actionable even when the light is still in
