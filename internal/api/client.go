@@ -166,19 +166,19 @@ func (r *lightResource) toModel() *models.Light {
 		light.Brightness = uint8(r.Dimming.Brightness / 100.0 * 254)
 	}
 
-	// Color
-	if r.Color != nil {
-		brightness := light.Brightness
-		if brightness == 0 {
-			brightness = 254
-		}
-		light.Color = models.NewColorFromXY(r.Color.XY.X, r.Color.XY.Y, brightness)
-	} else if r.ColorTemperature != nil && r.ColorTemperature.Mirek != nil {
-		brightness := light.Brightness
-		if brightness == 0 {
-			brightness = 254
-		}
+	// A color-capable Hue lamp exposes both XY and temperature resources.
+	// Prefer temperature only when Hue marks the current mirek valid; otherwise
+	// use XY without mistaking the presence of the color resource for its mode.
+	brightness := light.Brightness
+	if brightness == 0 {
+		brightness = 254
+	}
+	if r.ColorTemperature != nil && r.ColorTemperature.Mirek != nil &&
+		r.ColorTemperature.MirekValid && *r.ColorTemperature.Mirek >= 153 &&
+		*r.ColorTemperature.Mirek <= 500 {
 		light.Color = models.NewColorFromMirek(uint16(*r.ColorTemperature.Mirek), brightness)
+	} else if r.Color != nil {
+		light.Color = models.NewColorFromXY(r.Color.XY.X, r.Color.XY.Y, brightness)
 	}
 
 	return light
