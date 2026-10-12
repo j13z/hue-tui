@@ -81,7 +81,7 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `k` / `↑` | Move up             |
 | `h` / `←` | Decrease brightness |
 | `l` / `→` | Increase brightness |
-| `Alt+←/→` | Fine-adjust brightness (`Alt+h/l` also works) |
+| `H` / `L` | Fine-adjust brightness; `Alt+←/→` and `Alt+h/l` also work when supported |
 
 ### Light Control
 
@@ -91,11 +91,11 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 | `0`     | Set brightness to 100%   |
 | `1-9`   | Set brightness to 10-90% |
 | `w` / `c` | Warmer / cooler color temperature |
-| `Alt+w/c` | Fine-adjust color temperature |
+| `W` / `C` | Fine-adjust color temperature; `Alt+w/c` also works |
 | `[` / `]` | Decrease / increase hue |
-| `Alt+[/]` | Fine-adjust hue |
+| `{` / `}` | Fine-adjust hue; `Alt+[/]` also works |
 | `-` / `=` | Decrease / increase saturation |
-| `Alt+-/=` | Fine-adjust saturation |
+| `_` / `+` | Fine-adjust saturation; `Alt+-/=` also works |
 
 ### Room Control
 
@@ -116,11 +116,11 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 
 ## Tuning increments
 
-Regular and Alt-modified fine steps can be configured using environment variables:
+Normal and fine increments are configurable in `~/.config/hue-cli/config.json` via an optional `tuning` object, or with environment variables. The defaults are:
 
 | Variable | Default | Unit |
 | --- | ---: | --- |
-| `HUE_TUI_BRIGHTNESS_STEP` | 5 | percentage points |
+| `HUE_TUI_BRIGHTNESS_STEP` | 3 | percentage points |
 | `HUE_TUI_FINE_BRIGHTNESS_STEP` | 1 | percentage points |
 | `HUE_TUI_TEMPERATURE_STEP` | 25 | mirek |
 | `HUE_TUI_FINE_TEMPERATURE_STEP` | 5 | mirek |
@@ -129,9 +129,24 @@ Regular and Alt-modified fine steps can be configured using environment variable
 | `HUE_TUI_SATURATION_STEP` | 10 | percentage points |
 | `HUE_TUI_FINE_SATURATION_STEP` | 1 | percentage points |
 
-For example, `HUE_TUI_BRIGHTNESS_STEP=3 HUE_TUI_FINE_BRIGHTNESS_STEP=1 hue --group 3,81`.
+Example JSON fields:
 
-Your terminal must send distinct Alt-key events. In iTerm2, check Profile → Keys mappings for Option+arrow combinations if the events do not reach the application.
+```json
+"tuning": {
+  "brightness_step": 3,
+  "fine_brightness_step": 1,
+  "temperature_step": 25,
+  "fine_temperature_step": 5
+}
+```
+
+Other optional fields: `hue_step`, `fine_hue_step`, `saturation_step`, and `fine_saturation_step`.
+
+Priority: environment variable > JSON setting > built-in default. All step settings must be positive integers within their supported range; invalid values fall back to defaults.
+
+Example environment override: `HUE_TUI_BRIGHTNESS_STEP=2 hue --group 3,81`.
+
+Alt key combinations require terminal support and may be intercepted (for example, Option+arrows used for word navigation in iTerm2). The printable Shift variants above are the portable alternative and require no terminal configuration.
 
 ## Configuration
 
@@ -146,7 +161,11 @@ Configuration is stored in `~/.config/hue-cli/config.json`:
       "bridge_id": "001788FFFE123456"
     }
   ],
-  "last_bridge_id": "001788FFFE123456"
+  "last_bridge_id": "001788FFFE123456",
+  "tuning": {
+    "brightness_step": 3,
+    "fine_brightness_step": 1
+  }
 }
 ```
 
