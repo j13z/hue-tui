@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/angristan/hue-tui/internal/models"
 	"math"
 	"testing"
 )
@@ -118,5 +119,28 @@ func TestHSToXY_HueWrap(t *testing.T) {
 	if math.Abs(x0-xMax) > epsilon || math.Abs(y0-yMax) > epsilon {
 		t.Errorf("Hue wrap: (0)=(%v,%v) vs (65535)=(%v,%v) differ too much",
 			x0, y0, xMax, yMax)
+	}
+}
+
+func TestZoneChildrenAndMembership(t *testing.T) {
+	var raw roomResource
+	raw.ID = "zone-uuid"
+	raw.IDV1 = "/groups/81"
+	raw.Metadata.Name = "Play Bars"
+	raw.Children = append(raw.Children, struct {
+		Rid string `json:"rid"`
+		Rtype string `json:"rtype"`
+	}{Rid: "light-a", Rtype: "light"})
+	zone := raw.toModel()
+	zone.IsZone = true
+	if len(zone.LightIDs) != 1 || zone.LightIDs[0] != "light-a" {
+		t.Fatalf("unexpected zone child lights: %+v", zone.LightIDs)
+	}
+	lightA := &models.Light{ID: "light-a", DeviceID: "device-a"}
+	lightB := &models.Light{ID: "light-b", DeviceID: "device-b"}
+	zone.LightIDs = append(zone.LightIDs, "light-a") // repeated member must be deduplicated
+	zones := AssignLightsToZones([]*models.Light{lightA, lightB}, []*models.Room{zone})
+	if len(zones) != 1 || len(zones[0].Lights) != 1 || zones[0].Lights[0] != lightA {
+		t.Fatalf("zone member mismatch: %+v", zones)
 	}
 }
