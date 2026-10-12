@@ -114,6 +114,7 @@ func NewModel(cfg *config.Config, demoMode bool) Model {
 	// Initialize screen models
 	m.setupScreen = screens.NewSetupModel()
 	m.mainScreen = screens.NewMainModel(nil)
+	m.mainScreen.SetTuning(cfg.Tuning)
 	m.scenesScreen = screens.NewScenesModel()
 
 	return m
