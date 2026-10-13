@@ -2,6 +2,7 @@ package screens
 
 import (
 	"testing"
+	"time"
 
 	"github.com/angristan/hue-tui/internal/models"
 	tea "github.com/charmbracelet/bubbletea"
@@ -214,5 +215,37 @@ func TestMouseModeToggleWithoutSendingHueCommand(t *testing.T) {
 	m, _ = m.Update(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, nil)
 	if m.showColorControls {
 		t.Fatal("second click must return to temperature panel")
+	}
+}
+
+func TestMouseDragThrottleAndFinalFlush(t *testing.T) {
+	m := mouseTestModel()
+	nameWidth, width := lightBarLayout(m.contentWidth())
+	x := 6 + nameWidth
+	var sent []int
+	pending := func(id, field string, value interface{}, dir Direction) {
+		if field == "brightness" {
+			sent = append(sent, value.(int))
+		}
+	}
+	press := tea.MouseMsg{X: x, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	m, _ = m.Update(press, nil, pending)
+	if len(sent) != 1 {
+		t.Fatalf("press must issue immediate update, got %v", sent)
+	}
+	// A quick motion changes the preview but not the network target.
+	m, _ = m.Update(tea.MouseMsg{X: x + 5, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionMotion}, nil, pending)
+	if len(sent) != 1 || m.items[1].light.BrightnessPct() <= 1 {
+		t.Fatalf("fast motion must preview but not write, sent %v", sent)
+	}
+	// After the throttle interval, the next movement sends an intermediate value.
+	m.mouseDragSentAt = time.Now().Add(-time.Second)
+	m, _ = m.Update(tea.MouseMsg{X: x + 10, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionMotion}, nil, pending)
+	if len(sent) != 2 {
+		t.Fatalf("held drag must write intermediate brightness, got %v", sent)
+	}
+	m, _ = m.Update(tea.MouseMsg{X: x + width - 1, Y: 3, Action: tea.MouseActionRelease}, nil, pending)
+	if len(sent) != 3 || sent[len(sent)-1] != 100 {
+		t.Fatalf("mouse-up must always commit the last value: %v", sent)
 	}
 }
