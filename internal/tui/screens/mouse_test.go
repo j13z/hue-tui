@@ -125,14 +125,14 @@ func TestGroupSliderMouseUpAlwaysCommits(t *testing.T) {
 	}
 	press := tea.MouseMsg{X: start + barWidth - 1, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
 	m, _ = m.Update(press, nil, pending)
-	if len(sent) != 0 {
-		t.Fatalf("preview must not write before release: %v", sent)
+	if len(sent) != 2 {
+		t.Fatalf("press should immediately send live group brightness: %v", sent)
 	}
 	// No motion: even if press and release are identical, send final value.
 	release := tea.MouseMsg{X: start + barWidth - 1, Y: 2, Action: tea.MouseActionRelease}
 	m, cmd := m.Update(release, nil, pending)
-	if cmd == nil || len(sent) != 2 {
-		t.Fatalf("release must schedule brightness for both group lights: %v", sent)
+	if cmd == nil || len(sent) != 4 {
+		t.Fatalf("release must send brightness again for both group lights: %v", sent)
 	}
 	for _, light := range m.rooms[0].Lights {
 		if light.BrightnessPct() != 100 {
@@ -159,14 +159,14 @@ func TestTemperatureSliderFromXYCommitsOnRelease(t *testing.T) {
 		}
 	}
 	m, _ = m.Update(tea.MouseMsg{X: start, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, pending)
-	if sent != 0 {
-		t.Fatal("temperature preview must not send before release")
+	if sent != 1 {
+		t.Fatal("temperature press must send an immediate live update")
 	}
 	if light.Color.Mode != models.ColorModeColorTemp {
 		t.Fatal("temperature slider must preview ambiance mode")
 	}
 	m, cmd := m.Update(tea.MouseMsg{X: start + 24, Y: y, Action: tea.MouseActionRelease}, nil, pending)
-	if cmd == nil || sent != 1 || light.Color.Mirek != 500 {
+	if cmd == nil || sent != 2 || light.Color.Mirek != 500 {
 		t.Fatalf("mouse up must send final temperature, sent=%d mirek=%d", sent, light.Color.Mirek)
 	}
 	if m.mouseDragging {
@@ -185,8 +185,8 @@ func TestMouseBrightnessReleaseUsesFinalPosition(t *testing.T) {
 		}
 	}
 	m, _ = m.Update(tea.MouseMsg{X: start, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}, nil, pending)
-	if sent != 0 {
-		t.Fatalf("unexpected preview write: %d", sent)
+	if sent != 1 {
+		t.Fatalf("press must send the first live value (1%%): %d", sent)
 	}
 	m, _ = m.Update(tea.MouseMsg{X: start + barWidth - 1, Y: 3, Action: tea.MouseActionRelease}, nil, pending)
 	if sent != 100 || m.items[1].light.BrightnessPct() != 100 {
