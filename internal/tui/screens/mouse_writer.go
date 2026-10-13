@@ -11,7 +11,8 @@ import (
 // a newer write cannot overtake an older in-flight HTTP request, and older
 // queued commands are discarded if newer values supersede them.
 type mouseWriteCoordinator struct {
-	mu sync.Mutex
+	mu sync.Mutex // guards latest versions; never held for HTTP calls
+	writeMu sync.Mutex // serializes HTTP writes without blocking TUI state updates
 	next uint64
 	latest map[string]uint64
 }
@@ -42,13 +43,15 @@ func (q *mouseWriteCoordinator) schedule(writes []mouseLightWrite) tea.Cmd {
 
 	return func() tea.Msg {
 		for i, w := range writes {
+			q.writeMu.Lock()
+			// Recheck after waiting for any older in-flight request.
 			q.mu.Lock()
-			if q.latest[w.id] != tickets[i] {
-				q.mu.Unlock()
-				continue // Stale request, including a delayed intermediate drag value
+			stale := q.latest[w.id] != tickets[i]
+			q.mu.Unlock()
+			if stale {
+				q.writeMu.Unlock()
+				continue
 			}
-			// Serialize power and brightness/temperature writes for one light,
-			// holding the lock across the actual HTTP requests.
 			var result tea.Msg
 			for _, command := range w.commands {
 				if command == nil {
@@ -59,7 +62,7 @@ func (q *mouseWriteCoordinator) schedule(writes []mouseLightWrite) tea.Cmd {
 					break
 				}
 			}
-			q.mu.Unlock()
+			q.writeMu.Unlock()
 			if result != nil {
 				return result
 			}
