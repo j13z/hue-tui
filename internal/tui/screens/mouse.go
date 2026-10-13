@@ -210,7 +210,7 @@ func (m MainModel) changeMouseTemperature(bridge api.BridgeClient, addPending Pe
 		return m, nil
 	}
 	return m, m.mouseWrites.schedule([]mouseLightWrite{{id: light.ID, commands: cmds}})
-
+}
 
 func (m MainModel) previewDrag(bridge api.BridgeClient, addPending PendingAdder, value int, send bool) (MainModel, tea.Cmd) {
 	if m.mouseDragKind == "temperature" {
