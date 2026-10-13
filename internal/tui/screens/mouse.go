@@ -1,6 +1,8 @@
 package screens
 
 import (
+	"time"
+
 	"github.com/angristan/hue-tui/internal/api"
 	"github.com/angristan/hue-tui/internal/models"
 	tea "github.com/charmbracelet/bubbletea"
@@ -146,12 +148,12 @@ func (m MainModel) dragLights() []*models.Light {
 	return nil
 }
 
-// During dragging we only update the local preview. The final, unthrottled
-// API request is dispatched on MouseActionRelease, avoiding stale HTTP writes
-// from earlier drag positions racing the final value.
+// Preview every motion immediately; send throttled Hue commands during drag
+// and always commit the latest value on mouse-up.
 func (m MainModel) changeMouseBrightness(bridge api.BridgeClient, addPending PendingAdder, pct int, send bool) (MainModel, tea.Cmd) {
-	var cmds []tea.Cmd
+	var writes []mouseLightWrite
 	for _, light := range m.dragLights() {
+		var cmds []tea.Cmd
 		if send && m.mouseDragWasOff[light.ID] {
 			if addPending != nil {
 				addPending(light.ID, "on", true, DirExact)
@@ -165,12 +167,16 @@ func (m MainModel) changeMouseBrightness(bridge api.BridgeClient, addPending Pen
 				addPending(light.ID, "brightness", pct, DirExact)
 			}
 			cmds = append(cmds, m.setBrightnessCmd(bridge, light.ID, pct))
+			writes = append(writes, mouseLightWrite{id: light.ID, commands: cmds})
 		}
 	}
 	for _, room := range m.rooms {
 		room.UpdateState() // zones can share light pointers with rooms
 	}
-	return m, tea.Batch(cmds...)
+	if !send || m.mouseWrites == nil {
+		return m, nil
+	}
+	return m, m.mouseWrites.schedule(writes)
 }
 
 func (m MainModel) changeMouseTemperature(bridge api.BridgeClient, addPending PendingAdder, mirek int, send bool) (MainModel, tea.Cmd) {
@@ -200,8 +206,11 @@ func (m MainModel) changeMouseTemperature(bridge api.BridgeClient, addPending Pe
 		addPending(light.ID, "color_temp", mirek, DirExact)
 	}
 	cmds = append(cmds, m.setColorTempCmd(bridge, light.ID, mirek))
-	return m, tea.Batch(cmds...)
-}
+	if m.mouseWrites == nil {
+		return m, nil
+	}
+	return m, m.mouseWrites.schedule([]mouseLightWrite{{id: light.ID, commands: cmds}})
+
 
 func (m MainModel) previewDrag(bridge api.BridgeClient, addPending PendingAdder, value int, send bool) (MainModel, tea.Cmd) {
 	if m.mouseDragKind == "temperature" {
@@ -228,7 +237,10 @@ func (m MainModel) startDrag(idx, x, start, width int, kind string, bridge api.B
 		m.mouseDragWasOff[light.ID] = !light.On
 	}
 	m.mouseDragValue = m.dragValueForX(x)
-	return m.previewDrag(bridge, addPending, m.mouseDragValue, false)
+	m.mouseDragSent = m.mouseDragValue
+	m.mouseDragSentAt = time.Now()
+	// Initial press sends immediately, so a simple click is also responsive.
+	return m.previewDrag(bridge, addPending, m.mouseDragValue, true)
 }
 
 func (m MainModel) handleMouse(msg tea.MouseMsg, bridge api.BridgeClient, addPending PendingAdder) (MainModel, tea.Cmd) {
@@ -261,8 +273,17 @@ func (m MainModel) handleMouse(msg tea.MouseMsg, bridge api.BridgeClient, addPen
 		if !m.mouseDragging || msg.Button != tea.MouseButtonLeft {
 			return m, nil
 		}
-		m.mouseDragValue = m.dragValueForX(msg.X)
-		return m.previewDrag(bridge, addPending, m.mouseDragValue, false)
+		value := m.dragValueForX(msg.X)
+		if value == m.mouseDragValue {
+			return m, nil
+		}
+		m.mouseDragValue = value
+		send := time.Since(m.mouseDragSentAt) >= 120*time.Millisecond
+		if send {
+			m.mouseDragSentAt = time.Now()
+			m.mouseDragSent = value
+		}
+		return m.previewDrag(bridge, addPending, value, send)
 
 	case tea.MouseActionPress:
 		if msg.Button != tea.MouseButtonLeft {
