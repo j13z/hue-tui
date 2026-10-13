@@ -91,7 +91,7 @@ Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (origi
 - Click or drag a brightness bar in the list (including room/zone headers) or details panel to set brightness (1–100%). Group drags set all member lights to the selected brightness.
 - The details panel defaults to white temperature for capable lights. Drag its temperature bar from cool to warm, even if the light currently uses XY color mode.
 - Use `m` to switch the panel between temperature/ambiance and the optional color view. Simply switching the view does not change the light.
-- Scroll with the mouse wheel. Dragging previews values locally; **each mouse-up sends the final setting once** (no intermediate HTTP requests that could overwrite it).
+- Scroll with the mouse wheel. Dragging updates lights live (at most about one request per 120 ms), and **mouse-up always commits the final setting**. Requests are serialized per light, so a delayed intermediate value cannot overwrite the final one.
 
 ### Light Control
 
