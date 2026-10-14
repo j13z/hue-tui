@@ -67,10 +67,11 @@ Use a Hue API v1 group ID or a comma-separated list of room/zone IDs:
 ```bash
 hue --group 3      # Arbeitszimmer (room)
 hue --group 81     # Play Bars (zone)
-hue --group 3,81   # Show both
+hue --group 3,81   # Arbeitszimmer, then Play Bars
+hue --group 81,3   # Play Bars, then Arbeitszimmer
 ```
 
-Hue v2 room/zone UUIDs also work. Without `--group`, only rooms are shown (original behavior). An unknown ID, even in a list, causes an error rather than exposing unrelated rooms. This scopes the UI, not the API key's permissions.
+Hue v2 room/zone UUIDs also work. The UI preserves the order specified with `--group`; without `--group`, rooms are sorted alphabetically (original behavior). An unknown ID, even in a list, causes an error rather than exposing unrelated rooms. This scopes the UI, not the API key's permissions.
 
 ## Keybindings
 
