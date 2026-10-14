@@ -96,6 +96,7 @@ type listItem struct {
 // MainModel is the main dashboard screen model
 type MainModel struct {
 	rooms         []*models.Room
+	preserveGroupOrder bool
 	steps         StepConfig
 	scenes        []*models.Scene
 	selectedIndex int
@@ -213,11 +214,17 @@ func (m *MainModel) ensureVisible() {
 	}
 }
 
+func (m *MainModel) SetExplicitGroupOrder(enabled bool) {
+	m.preserveGroupOrder = enabled
+}
+
 func (m *MainModel) SetData(rooms []*models.Room, scenes []*models.Scene) {
-	// Sort rooms alphabetically by name
-	sort.Slice(rooms, func(i, j int) bool {
-		return rooms[i].Name < rooms[j].Name
-	})
+	// Scoped groups already arrive in CLI argument order; only sort the default view.
+	if !m.preserveGroupOrder {
+		sort.Slice(rooms, func(i, j int) bool {
+			return rooms[i].Name < rooms[j].Name
+		})
+	}
 	m.rooms = rooms
 	m.scenes = scenes
 	m.loading = false
