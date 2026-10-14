@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/angristan/hue-tui/internal/api"
 	"github.com/angristan/hue-tui/internal/config"
@@ -120,9 +121,11 @@ func NewModel(cfg *config.Config, demoMode bool) Model {
 	return m
 }
 
-// SetGroupScope limits the visible rooms, lights and scenes to one Hue room.
+// SetGroupScope limits the visible rooms, zones, lights and scenes.
+// Explicitly supplied groups keep their argument order in the UI.
 func (m *Model) SetGroupScope(group string) {
 	m.groupScope = group
+	m.mainScreen.SetExplicitGroupOrder(strings.TrimSpace(group) != "")
 }
 
 // Init initializes the application
