@@ -26,6 +26,7 @@ func TestScopeGroup(t *testing.T) {
 		{"81", 1, 1},
 		{"zone-uuid", 1, 1},
 		{"3,81", 2, 2},
+		{"81,3", 2, 2},
 		{" 81, 3,81 ", 2, 2},
 		{"/groups/81", 1, 1},
 	} {
@@ -36,6 +37,9 @@ func TestScopeGroup(t *testing.T) {
 		}
 		if len(gotGroups) != tc.wantGroups || len(gotScenes) != tc.wantScenes {
 			t.Errorf("scope %q: got %d groups, %d scenes", tc.scope, len(gotGroups), len(gotScenes))
+		}
+		if tc.scope == "81,3" && (gotGroups[0] != zone || gotGroups[1] != office) {
+			t.Errorf("scope %q: group order must follow CLI arguments", tc.scope)
 		}
 	}
 	for _, scope := range []string{"99", "3,99", "3,", ",81", "3,,81", "300"} {
